@@ -18,6 +18,10 @@
 
 -- MODIFICATION: Rename icustay_detail to flicu_icustay_detail (as originial is adjusted)
 -- CREATE TABLE icustay_detail AS
+
+
+
+
 CREATE TABLE flicu_icustay_detail AS
 
 -- This query extracts useful demographic/administrative information for patient ICU stays
@@ -78,20 +82,32 @@ SELECT ie.subject_id, ie.hadm_id, ie.icustay_id
   (
        'AMERICAN INDIAN/ALASKA NATIVE' --     51
      , 'AMERICAN INDIAN/ALASKA NATIVE FEDERALLY RECOGNIZED TRIBE' --      3
-  ) then 'native'
+  ) then 'alaska_native'
   when ethnicity in
   (
       'UNKNOWN/NOT SPECIFIED' --   4523
     , 'UNABLE TO OBTAIN' --    814
     , 'PATIENT DECLINED TO ANSWER' --    559
+	, 'OTHER' --   1512
+	, 'MULTI RACE ETHNICITY' --    130v
   ) then 'unknown'
+  when ethnicity in
+  (
+      'PORTUGUESE' --   4523
+  ) then 'portuguese'
+  when ethnicity in
+  (
+      'MIDDLE EASTERN' --     43
+  ) then 'middle_eastern'
+  when ethnicity in
+  (
+      'NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER' --     18
+  ) then 'pacific_islander'
+  when ethnicity in
+  (
+      'SOUTH AMERICAN' --     8
+  ) then 'south_american'
   else 'other' end as ethnicity_grouped
-  -- , 'OTHER' --   1512
-  -- , 'MULTI RACE ETHNICITY' --    130
-  -- , 'PORTUGUESE' --     61
-  -- , 'MIDDLE EASTERN' --     43
-  -- , 'NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER' --     18
-  -- , 'SOUTH AMERICAN' --      8
 , adm.hospital_expire_flag
 , DENSE_RANK() OVER (PARTITION BY adm.subject_id ORDER BY adm.admittime) AS hospstay_seq
 , CASE
@@ -132,11 +148,48 @@ SELECT ie.subject_id, ie.hadm_id, ie.icustay_id
     WHEN ie.intime <= adm.deathtime and adm.deathtime <= ie.outtime THEN 1
     ELSE 0
     END AS label_death_icu
-
+	
 FROM mimiciii.icustays ie
 INNER JOIN mimiciii.admissions adm
     ON ie.hadm_id = adm.hadm_id
 INNER JOIN mimiciii.patients pat
     ON ie.subject_id = pat.subject_id
+	
 WHERE adm.has_chartevents_data = 1
 ORDER BY ie.subject_id, adm.admittime, ie.intime;
+
+
+------------------------Coronart_artery_label creation ------------------------
+CREATE TABLE mimiciii.diagnoses_icd_cor_art AS
+SELECT
+    t.subject_id,
+    t.hadm_id,
+    t.label_cor_art
+FROM
+    (SELECT
+        DISTINCT subject_id, hadm_id,
+        CASE
+            WHEN icd.icd9_code IN ('74685', '41401', '41406', '41412', '4142', '74685') THEN 1
+            ELSE 0
+        END AS label_cor_art
+     FROM
+        mimiciii.diagnoses_icd icd) t
+JOIN
+    (SELECT hadm_id, MAX(label_cor_art) AS coronary_artery
+     FROM (SELECT
+               DISTINCT subject_id, hadm_id,
+               CASE
+                   WHEN icd.icd9_code IN ('74685', '41401', '41406', '41412', '4142', '74685') THEN 1
+                   ELSE 0
+               END AS label_cor_art
+           FROM
+               mimiciii.diagnoses_icd icd) col
+     GROUP BY hadm_id) max_codes
+ON t.hadm_id = max_codes.hadm_id AND t.label_cor_art = max_codes.coronary_artery;
+
+ALTER TABLE mimiciii.flicu_icustay_detail ADD COLUMN label_cor_art INTEGER;
+
+UPDATE mimiciii.flicu_icustay_detail ficu SET label_cor_art = dcor.label_cor_art
+FROM mimiciii.diagnoses_icd_cor_art dcor WHERE ficu.hadm_id = dcor.hadm_id;
+
+DROP TABLE IF EXISTS mimiciii.diagnoses_icd_cor_art;
