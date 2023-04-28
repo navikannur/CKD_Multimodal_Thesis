@@ -1,0 +1,50 @@
+--SELECT * FROM mimiciii.d_labitems WHERE d_labitems.label ILIKE '%Crea%'
+--WHERE labevents.itemid = 51081
+SELECT * FROM mimiciii.cptevents limit 2 
+
+--SELECT * FROM mimiciii.admissions WHERE subject_id = 85
+
+--SELECT * FROM mimiciii.diagnoses_icd dicd where subject_id = 3
+
+--SELECT * FROM mimiciii.d_icd_diagnoses where long_title ILIKE '%kidney%'
+
+
+
+--SELECT * FROM mimiciii.icustays WHERE subject_id = 3
+--SELECT DISTINCT dicd.subject_id, icu.hadm_id FROM mimiciii.diagnoses_icd dicd
+--JOIN mimiciii.icustays icu ON dicd.subject_id = icu.subject_id
+--WHERE dicd.icd9_code IN ('5851','5852','5853','5854','5855','5859')
+
+--SELECT DISTINCT subject_id, hadm_id FROM mimiciii.diagnoses_icd dicd
+--WHERE dicd.subject_id in (SELECT DISTINCT subject_id FROM mimiciii.diagnoses_icd dicd 
+--WHERE dicd.icd9_code IN ('5851','5852','5853','5854','5855','5859'))
+
+--SELECT DISTINCT subject_id, hadm_id,icd9_code  FROM mimiciii.diagnoses_icd dicd
+--WHERE dicd.icd9_code IN ('5851','5852','5853','5854','5855','5859')
+--SELECT *  FROM mimiciii.diagnoses_icd dicd WHERE subject_id = 85
+--subject_id = 85 hadm_id -- 112077, 116630
+--SELECT * FROM mimiciii.labevents lab WHERE lab.itemid = 50912 and subject_id = 85 order by charttime desc
+
+--SELECT dicd.subject_id, dicd.icd9_code, lab.itemid, lab.value FROM mimiciii.diagnoses_icd dicd
+--JOIN mimiciii.labevents lab ON dicd.subject_id = lab.subject_id
+--WHERE lab.itemid = 50912 AND dicd.icd9_code IN ('5851') --,'5852','5853','5854','5855')
+
+--SELECT * FROM mimiciii.labevents lab WHERE lab.itemid = 50912 and subject_id = 3 order by charttime desc
+--SELECT * FROM mimiciii.chartevents lab WHERE subject_id = 3 order by charttime desc
+--SELECT * FROM mimiciii.labevents lab WHERE subject_id = 3 order by charttime desc
+--SELECT * FROM mimiciii.patients ad WHERE subject_id = 3
+
+--SELECT * FROM mimiciii.d_labitems 
+--WHERE d_labitems.label ILIKE '%Crea%'
+--WHERE icd9_code IN ('5851','5852','5853','5854','5855');
+--limit 10 51081
+
+--SELECT dicd.subject_id, dicd.icd9_code, lab.itemid, lab.value FROM mimiciii.diagnoses_icd dicd
+--JOIN mimiciii.labevents lab ON dicd.subject_id = lab.subject_id
+--WHERE lab.itemid = 51081 AND dicd.icd9_code IN ('5851','5852','5853','5854','5855')
+
+--SELECT dicd.subject_id, dicd.icd9_code, lab.itemid, lab.value FROM mimiciii.diagnoses_icd dicd
+--JOIN mimiciii.labevents lab ON dicd.subject_id = lab.subject_id
+--WHERE lab.itemid IN (SELECT itemid FROM mimiciii.d_labitems WHERE d_labitems.label ILIKE '%Crea%')
+--WHERE lab.itemid = 50912
+--AND dicd.icd9_code IN ('5851','5852','5853','5854','5855')
