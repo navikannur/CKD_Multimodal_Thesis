@@ -18,6 +18,10 @@
 
 -- MODIFICATION: Rename icustay_detail to flicu_icustay_detail (as originial is adjusted)
 -- CREATE TABLE icustay_detail AS
+
+
+
+
 CREATE TABLE flicu_icustay_detail AS
 
 -- This query extracts useful demographic/administrative information for patient ICU stays
@@ -60,6 +64,7 @@ SELECT ie.subject_id, ie.hadm_id, ie.icustay_id
     , 'HISPANIC/LATINO - MEXICAN' --     13
     , 'HISPANIC/LATINO - COLOMBIAN' --      9
     , 'HISPANIC/LATINO - HONDURAN' --      4
+	,'SOUTH AMERICAN' --     8
   ) then 'hispanic'
   when ethnicity in
   (
@@ -78,20 +83,28 @@ SELECT ie.subject_id, ie.hadm_id, ie.icustay_id
   (
        'AMERICAN INDIAN/ALASKA NATIVE' --     51
      , 'AMERICAN INDIAN/ALASKA NATIVE FEDERALLY RECOGNIZED TRIBE' --      3
-  ) then 'native'
+  ) then 'alaska_native'
   when ethnicity in
   (
       'UNKNOWN/NOT SPECIFIED' --   4523
     , 'UNABLE TO OBTAIN' --    814
     , 'PATIENT DECLINED TO ANSWER' --    559
+	, 'OTHER' --   1512
+	, 'MULTI RACE ETHNICITY' --    130v
   ) then 'unknown'
+  when ethnicity in
+  (
+      'PORTUGUESE' --   4523
+  ) then 'portuguese'
+  when ethnicity in
+  (
+      'MIDDLE EASTERN' --     43
+  ) then 'middle_eastern'
+  when ethnicity in
+  (
+      'NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER' --     18
+  ) then 'pacific_islander'
   else 'other' end as ethnicity_grouped
-  -- , 'OTHER' --   1512
-  -- , 'MULTI RACE ETHNICITY' --    130
-  -- , 'PORTUGUESE' --     61
-  -- , 'MIDDLE EASTERN' --     43
-  -- , 'NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER' --     18
-  -- , 'SOUTH AMERICAN' --      8
 , adm.hospital_expire_flag
 , DENSE_RANK() OVER (PARTITION BY adm.subject_id ORDER BY adm.admittime) AS hospstay_seq
 , CASE
@@ -132,11 +145,137 @@ SELECT ie.subject_id, ie.hadm_id, ie.icustay_id
     WHEN ie.intime <= adm.deathtime and adm.deathtime <= ie.outtime THEN 1
     ELSE 0
     END AS label_death_icu
-
+	
 FROM mimiciii.icustays ie
 INNER JOIN mimiciii.admissions adm
     ON ie.hadm_id = adm.hadm_id
 INNER JOIN mimiciii.patients pat
     ON ie.subject_id = pat.subject_id
+	
 WHERE adm.has_chartevents_data = 1
 ORDER BY ie.subject_id, adm.admittime, ie.intime;
+
+
+------------------------Coronart_artery_label creation ------------------------
+CREATE TABLE mimiciii.diagnoses_icd_cor_art AS
+SELECT
+    t.subject_id,
+    t.hadm_id,
+    t.label_cor_art
+FROM
+    (SELECT
+        DISTINCT subject_id, hadm_id,
+        CASE
+            WHEN icd.icd9_code IN ('74685', '41401', '41406', '41412', '4142', '74685') THEN 1
+            ELSE 0
+        END AS label_cor_art
+     FROM
+        mimiciii.diagnoses_icd icd) t
+JOIN
+    (SELECT hadm_id, MAX(label_cor_art) AS coronary_artery
+     FROM (SELECT
+               DISTINCT subject_id, hadm_id,
+               CASE
+                   WHEN icd.icd9_code IN ('74685', '41401', '41406', '41412', '4142', '74685') THEN 1
+                   ELSE 0
+               END AS label_cor_art
+           FROM
+               mimiciii.diagnoses_icd icd) col
+     GROUP BY hadm_id) max_codes
+ON t.hadm_id = max_codes.hadm_id AND t.label_cor_art = max_codes.coronary_artery;
+
+ALTER TABLE mimiciii.flicu_icustay_detail ADD COLUMN label_cor_art INTEGER;
+
+UPDATE mimiciii.flicu_icustay_detail ficu SET label_cor_art = dcor.label_cor_art
+FROM mimiciii.diagnoses_icd_cor_art dcor WHERE ficu.hadm_id = dcor.hadm_id;
+
+DROP TABLE IF EXISTS mimiciii.diagnoses_icd_cor_art;
+
+
+------------------------diabetes_mellitus creation ------------------------
+CREATE TABLE icd_codes (
+  icd_code VARCHAR(10) PRIMARY KEY,
+  icd_code_type VARCHAR(50)
+);
+
+INSERT INTO icd_codes (icd_code, icd_code_type)
+VALUES 
+    ('24900', 'diabetes_mellitus'),
+    ('24901', 'diabetes_mellitus'),
+    ('24910', 'diabetes_mellitus'),
+    ('24911', 'diabetes_mellitus'),
+    ('24920', 'diabetes_mellitus'),
+    ('24921', 'diabetes_mellitus'),
+    ('24930', 'diabetes_mellitus'),
+    ('24931', 'diabetes_mellitus'),
+    ('24940', 'diabetes_mellitus'),
+    ('24941', 'diabetes_mellitus'),
+    ('24950', 'diabetes_mellitus'),
+    ('24951', 'diabetes_mellitus'),
+    ('24960', 'diabetes_mellitus'),
+    ('24961', 'diabetes_mellitus'),
+    ('24970', 'diabetes_mellitus'),
+    ('24971', 'diabetes_mellitus'),
+    ('24980', 'diabetes_mellitus'),
+    ('24981', 'diabetes_mellitus'),
+    ('24990', 'diabetes_mellitus'),
+    ('24991', 'diabetes_mellitus'),
+    ('25000', 'diabetes_mellitus'),
+    ('25001', 'diabetes_mellitus'),
+    ('25002', 'diabetes_mellitus'),
+    ('25003', 'diabetes_mellitus'),
+    ('64800', 'diabetes_mellitus'),
+    ('64801', 'diabetes_mellitus'),
+    ('64802', 'diabetes_mellitus'),
+    ('64803', 'diabetes_mellitus'),
+    ('64804', 'diabetes_mellitus'),
+    ('7751', 'diabetes_mellitus');
+
+ALTER TABLE flicu_icustay_detail
+ADD COLUMN diabetes_mellitus INTEGER;
+
+UPDATE flicu_icustay_detail
+SET diabetes_mellitus =
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM diagnoses_icd d
+            JOIN icd_codes c ON d.icd9_code = c.icd_code
+            WHERE d.hadm_id = flicu_icustay_detail.hadm_id
+            AND c.icd_code_type = 'diabetes_mellitus'
+        ) THEN 1
+        ELSE 0
+    END;
+DROP TABLE IF EXISTS mimiciii.icd_codes;
+
+-----------------------------------CKD label-----------------------------------
+CREATE TABLE ckd_icd_codes (
+icd_code VARCHAR(10) PRIMARY KEY,
+icd_code_type VARCHAR(50)
+);
+
+INSERT INTO ckd_icd_codes (icd_code, icd_code_type)
+VALUES
+('5851', 'chronic_kidney_disease'),
+('5852', 'chronic_kidney_disease'),
+('5853', 'chronic_kidney_disease'),
+('5854', 'chronic_kidney_disease'),
+('5855', 'chronic_kidney_disease'),
+('5859', 'chronic_kidney_disease');
+
+ALTER TABLE flicu_icustay_detail
+ADD COLUMN ckd INTEGER;
+
+UPDATE flicu_icustay_detail
+SET ckd =
+CASE
+WHEN EXISTS (
+SELECT 1
+FROM diagnoses_icd d
+JOIN ckd_icd_codes c ON d.icd9_code = c.icd_code
+WHERE d.hadm_id = flicu_icustay_detail.hadm_id
+AND c.icd_code_type = 'chronic_kidney_disease'
+) THEN 1
+ELSE 0
+END;
+DROP TABLE IF EXISTS mimiciii.ckd_icd_codes;
