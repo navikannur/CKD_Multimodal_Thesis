@@ -279,3 +279,58 @@ AND c.icd_code_type = 'chronic_kidney_disease'
 ELSE 0
 END;
 DROP TABLE IF EXISTS mimiciii.ckd_icd_codes;
+
+
+-- Create table for anemia ICD9 codes
+CREATE TABLE anemia (
+  icd_code VARCHAR(10) PRIMARY KEY,
+  icd_code_type VARCHAR(50)
+);
+
+-- Insert ICD9 codes for anemia
+INSERT INTO anemia (icd_code, icd_code_type)
+VALUES 
+    ('2839', 'anemia'),
+    ('2800', 'anemia'),
+    ('2801', 'anemia'),
+    ('2808', 'anemia'),
+    ('2809', 'anemia'),
+    ('2810', 'anemia'),
+    ('2811', 'anemia'),
+    ('2812', 'anemia'),
+    ('2813', 'anemia'),
+    ('2814', 'anemia'),
+    ('2818', 'anemia'),
+    ('2819', 'anemia'),
+    ('2822', 'anemia'),
+    ('2823', 'anemia'),
+    ('28310', 'anemia'),
+    ('28319', 'anemia'),
+    ('28409', 'anemia'),
+    ('28489', 'anemia'),
+    ('2849', 'anemia'),
+    ('2850', 'anemia'),
+    ('2851', 'anemia'),
+    ('7735', 'anemia'),
+    ('7765', 'anemia');
+
+-- Add new column to flicu_icustay_detail for anemia flag
+ALTER TABLE flicu_icustay_detail
+ADD COLUMN anemia_flag INTEGER;
+
+-- Update anemia flag based on ICD9 codes in diagnoses_icd table
+UPDATE flicu_icustay_detail
+SET anemia_flag =
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM diagnoses_icd d
+            JOIN anemia a ON d.icd9_code = a.icd_code
+            WHERE d.hadm_id = flicu_icustay_detail.hadm_id
+            AND a.icd_code_type = 'anemia'
+        ) THEN 1
+        ELSE 0
+    END;
+
+-- Drop temporary table for anemia ICD9 codes
+DROP TABLE IF EXISTS anemia;

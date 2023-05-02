@@ -99,3 +99,12 @@ select
 from ce
 group by ce.icustay_id, ce.charttime
 order by ce.icustay_id, ce.charttime;
+
+--adding CKD label 
+ALTER TABLE pivoted_vital
+ADD COLUMN ckd INT;
+
+UPDATE pivoted_vital cpl
+SET ckd = ficd.ckd
+FROM flicu_icustay_detail ficd
+WHERE cpl.icustay_id = ficd.icustay_id;

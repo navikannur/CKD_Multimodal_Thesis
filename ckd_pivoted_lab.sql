@@ -266,3 +266,12 @@ left join mimiciii.icustays icu
   and le_avg.charttime >= icu.intime
   and le_avg.charttime  < icu.outtime
 order by le_avg.subject_id, le_avg.charttime;
+
+--Adding CKD label column
+ALTER TABLE ckd_pivoted_lab
+ADD COLUMN ckd INT;
+
+UPDATE ckd_pivoted_lab cpl
+SET ckd = ficd.ckd
+FROM flicu_icustay_detail ficd
+WHERE cpl.icustay_id = ficd.icustay_id;
