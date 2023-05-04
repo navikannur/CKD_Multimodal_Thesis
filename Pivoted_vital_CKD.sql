@@ -1,4 +1,4 @@
-[1:56 pm, 27/04/2023] Aakruti: CREATE TABLE pivoted_vital AS
+CREATE TABLE pivoted_vital AS
 
 with ce as
 (
@@ -120,3 +120,13 @@ select
 from ce
 group by ce.icustay_id, ce.charttime
 order by ce.icustay_id, ce.charttime;
+
+
+------ckd-----
+ALTER TABLE pivoted_vital
+ADD COLUMN ckd INT;
+
+UPDATE pivoted_vital cpl
+SET ckd = ficd.ckd
+FROM flicu_icustay_detail ficd
+WHERE cpl.icustay_id = ficd.icustay_id;
