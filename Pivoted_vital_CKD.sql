@@ -1,4 +1,16 @@
-CREATE TABLE pivoted_vital AS
+[1:56 pm, 27/04/2023] Aakruti: CREATE TABLE pivoted_vital AS
+
+with ce as
+(
+  select ce.icustay_id
+    , ce.charttime
+    , (case when itemid in (211,220045) and valuenum > 0 and valuenum < 300 then valuenum else null end) as heartrate
+    , (case when itemid in (51,442,455,6701,220179,220050) and valuenum > 0 and valuenum < 400 then valuenum else null end) as sysbp
+    , (case when itemid in (8368,8440,8441,8555,220180,220051) and valuenum > 0 and valuenum < 300 then valuenum else null end) as diasbp
+    , (case when itemid in (456,52,6702,443,220052,220181,225312) and valuenum > 0 and valuenum < 300 then valuenum else null end) as meanbp
+    , (case when itemid in (615,618,220210,224690) and valuenum > 0 and valuenum < 70 then valuenum else null end) as resprate
+    , (case when itemid i…
+[2:10 pm, 27/04/2023] Aakruti: CREATE TABLE pivoted_vital AS
 
 with ce as
 (
@@ -16,6 +28,13 @@ with ce as
 	, (case when itemid in (3799) and valuenum < 5 then valuenum else null end) as rbc
 	, (case when itemid in (227471) and valuenum < 1.03 then valuenum else null end) as specificgravity
 	, (case when itemid in (6870) and valuenum < 3 then valuenum else null end) as pedaledema
+	, (CASE
+    WHEN value = 'Poor' THEN 1
+    WHEN value = 'Fair' THEN 2
+    WHEN value = 'Good' THEN 3
+    WHEN value = 'Very Good' THEN 4
+    ELSE NULL
+	END) AS appetite_numeric
   FROM mimiciii.chartevents ce
   -- exclude rows marked as error
   where (ce.error IS NULL OR ce.error != 1)
@@ -79,7 +98,8 @@ with ce as
   678, --	"Temperature F"
   3799, 
   227471,
-  6870
+  6870,
+  225120
   )
 )
 select
@@ -96,15 +116,7 @@ select
   , avg(rbc) as rbc
   , avg(specificgravity) as specificgravity
   , avg(pedaledema) as pedaledema
+  , percentile_cont(0.5) WITHIN GROUP (ORDER BY appetite_numeric) as appetite_median
 from ce
 group by ce.icustay_id, ce.charttime
 order by ce.icustay_id, ce.charttime;
-
---adding CKD label 
-ALTER TABLE pivoted_vital
-ADD COLUMN ckd INT;
-
-UPDATE pivoted_vital cpl
-SET ckd = ficd.ckd
-FROM flicu_icustay_detail ficd
-WHERE cpl.icustay_id = ficd.icustay_id;
