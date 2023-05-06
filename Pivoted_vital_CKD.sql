@@ -13,9 +13,9 @@ with ce as
                when itemid in (223762,676) and valuenum > 10 and valuenum < 50  then valuenum else null end) as tempc
     , (case when itemid in (646,220277) and valuenum > 0 and valuenum <= 100 then valuenum else null end) as spo2
     , (case when itemid in (807,811,1529,3745,3744,225664,220621,226537) and valuenum > 0 then valuenum else null end) as glucose
-	, (case when itemid in (3799) and valuenum < 5 then valuenum else null end) as rbc
-	, (case when itemid in (227471) and valuenum < 1.03 then valuenum else null end) as specificgravity
-	, (case when itemid in (6870) and valuenum < 3 then valuenum else null end) as pedaledema
+	, (case when itemid in (3799) and valuenum <13 then valuenum else null end) as rbc
+	, (case when itemid in (227471) and valuenum > 0 then valuenum else null end) as specificgravity
+	, (case when itemid in (6870) and valuenum > 0 then valuenum else null end) as pedaledema
 	, (CASE
     WHEN value = 'Poor' THEN 1
     WHEN value = 'Fair' THEN 2
